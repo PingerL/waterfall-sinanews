@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>瀑布流新闻网站</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        ul,li {
+            list-style: none;
+        }
+        .clearfix::after {
+            content: '';
+            display: block;
+            clear: both;
+        }
+        .wrap {
+            width: 900px;
+            margin: 0 auto;
+        }
+        .hide {
+            display: none;
+        }
+        .pic-ct {
+            position: relative;
+        }
+        .pic-ct .item {
+            position: absolute;
+            width: 280px;
+            margin: 10px;
+            border: 1px solid #dfdfdf;
+            padding: 10px;
+            /* float: left; */
+            transition: all .8s;
+            opacity: 0;
+        }
+        .pic-ct .item img{
+            width: 260px;
+        }
+        .pic-ct .description{
+            font-size: 12px;
+            line-height: 1.8;
+            color: #777371;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="ct-waterfall">
+            <ul class="pic-ct clearfix">
+                <!-- <li class="item"> 
+                    <a href="#" class="link">
+                        <img src="http://s.img.mix.sina.com.cn/auto/resize?img=http%3A%2F%2Fwww.sinaimg.cn%2Fdy%2Fslidenews%2F5_img%2F2016_09%2F453_75615_657883.jpg&size=250_0" alt="">
+                    </a>
+                    <h4 class="header">标题</h4>
+                    <p class="description">
+                        当地时间2016年3月1日，在东部与亲俄武装作战中受伤的乌克兰士兵接受海豚治疗。
+                    </p>
+                <!-- 用于计算 item 宽度和列数，但不展现出来 -->
+                <li class="item hide"></li>
+            
+            </ul>
+            <div class="load">我是看不见的</div>
+        </div>
+    </div>
+<script src="http://apps.bdimg.com/libs/jquery/1.9.1/jquery.min.js"></script>
+<script>
+    /*
+        1.获取数据
+        2.创建节点，通过瀑布流方式放在页面上
+        3. 判断是否滚动到底部
+    */
+    var curPage = 1
+    var perPageCount = 10
+    var colHeight = []
+    var nodeWidth = $('.item').outerWidth(true)
+    var colNum = parseInt($('.pic-ct').width()/nodeWidth)
+    for (var i=0; i<colNum; i++){
+        colHeight.push(0)
+    }
+
+    var isDataArrive = true
+    start()
+
+    function start(){
+        getData(function(newList){
+            // console.log(newList)
+            isDataArrive = true
+            $.each(newList,function(idx,news){
+                var $node = getNode(news)
+                $node.find('img').load(function(){
+                    $('.pic-ct').append($node)
+                    waterFallPlace($node)
+                })
+            })            
+        })
+        isDataArrive = false
+    }
+
+    $(window).scroll(function(){
+        if(!isDataArrive) return
+        if(isVisible($('.load'))){
+            start()
+        }
+    })
+
+    function getData(callback){
+        $.ajax({
+            url:'https://photo.sina.cn/aj/v2/index?cate=military',
+            dataType: 'jsonp',
+            jsonp: 'callback',
+            data: {
+                pagesize: perPageCount,
+                page: curPage
+            }
+        }).done(function(ret){
+            if(ret && ret.code == 1){
+                callback(ret.data)
+                curPage++
+            }else {
+                console.log('get error data')
+            }
+        })
+    }
+
+    function getNode(item){
+        var $node = $(`<li class="item"> 
+                    <a href="#" class="link">
+                        <img src="http://s.img.mix.sina.com.cn/auto/resize?img=http%3A%2F%2Fwww.sinaimg.cn%2Fdy%2Fslidenews%2F5_img%2F2016_09%2F453_75615_657883.jpg&size=250_0" alt="">
+                    </a>
+                    <h4 class="header">标题</h4>
+                    <p class="description">
+                        当地时间2016年3月1日，在东部与亲俄武装作战中受伤的乌克兰士兵接受海豚治疗。
+                    </p>
+                </li>`)
+        $node.find('.link').attr('href',item.url)
+        $node.find('img').attr('src',item.thumb)
+        $node.find('h4').text(item.stitle)
+        $node.find('p').text(item.title)
+        return $node
+    }
+
+    function waterFallPlace($node){
+        var  idx = 0,
+        minSumHeight = colHeight[0]
+        console.log('a:'+colHeight)
+
+        for(var i=0; i<colHeight.length; i++){
+            if(colHeight[i] < minSumHeight){
+                minSumHeight = colHeight[i]
+                idx = i
+            }
+        }
+        console.log(nodeWidth,idx)
+        console.log(colHeight)
+        $node.css({
+            left: idx*nodeWidth,
+            top: minSumHeight,
+            opacity:1
+        })
+        colHeight[idx] += $node.outerHeight(true)
+        $('.pic-ct').height(Math.max.apply(null,colHeight))
+
+    }
+
+    function isVisible($el){
+	  var scrollH = $(window).scrollTop(),
+	  	  winH = $(window).height(),
+	  	  top = $el.offset().top;
+
+  	  if(top < winH + scrollH){
+  	  	return true;
+  	  }else{
+  	  	return false;
+  	  }
+	}
+</script>
+</body>
+</html>
